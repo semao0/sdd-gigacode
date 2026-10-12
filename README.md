@@ -51,9 +51,6 @@ scripts/
 Команды OpenSpec (`/opsx-explore`, `/opsx-apply`, `/opsx-archive` и др.) ставятся через
 `openspec init --tools gigacode` в `.gigacode/commands/` и используются как есть.
 
-Другой ассистент: `SDD_TOOL=qwen` (или `claude`) перед `bootstrap-*.sh` — скилы лягут в
-`.qwen/skills/` (`.claude/skills/`), формат тот же.
-
 ## Быстрый старт
 
 ```bash
