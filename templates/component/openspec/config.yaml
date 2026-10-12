@@ -1,0 +1,25 @@
+# schema подставляется bootstrap-component.sh: impl-backend | impl-frontend
+schema: __SCHEMA__
+
+# Бизнес-спеки читаются из store (read-only). Правки бизнес-требований - только
+# через change в store.
+references:
+  # remote нужен, чтобы openspec doctor выдал коллеге готовую команду clone+register
+  - { id: __STORE_ID__, remote: "__STORE_REMOTE__" }
+
+context: |
+  Это репозиторий компонента "__COMPONENT__". Implementation-changes здесь
+  описывают КАК (design.md, tasks.md) и ссылаются на бизнес-change в store через
+  поле initiative в .openspec.yaml. Текст артефактов пиши на русском.
+  Чисто технические изменения без изменения бизнес-поведения (рефакторинг,
+  обновление зависимостей, инфраструктура) делаются схемой spec-driven
+  с skip_specs: true, либо с локальными техническими спеками в openspec/specs.
+
+operations:
+  apply:
+    guidance:
+      - Перед началом сверь design.md с актуальной версией upstream-change в store (git pull store)
+      - В названии теста указывай <capability>/<scenario> из трассировки covers
+  archive:
+    guidance:
+      - Перед archive запусти скил sdd-impl-verify

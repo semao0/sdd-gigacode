@@ -1,0 +1,47 @@
+name: impl-frontend
+version: 1
+description: Реализация бизнес-изменения из store в компоненте frontend - design → tasks
+artifacts:
+  design:
+    requires: []
+    description: Технический дизайн frontend для upstream бизнес-изменения
+    instruction_prefix: |
+      КОРПОРАТИВНЫЙ КОНТЕКСТ. Это implementation-change компонента "frontend".
+      Бизнес-требования (ЧТО) лежат в store и здесь НЕ дублируются; здесь только КАК.
+      1. Прочитай .openspec.yaml этого change: поле initiative {store, id} указывает
+         на upstream-change в store. Если поля нет - остановись и попроси запустить
+         скил sdd-impl-plan, он его заполнит.
+      2. Загрузи upstream целиком: `openspec show <initiative.id> --store <initiative.store>`
+         (proposal + specs) и ОБЯЗАТЕЛЬНО system.md upstream-change - файл
+         `<путь store>/openspec/changes/<initiative.id>/system.md` (путь store:
+         `openspec store list --json`). Для заархивированного change ищи его в
+         `openspec/changes/archive/*-<initiative.id>/`. Нет system.md - остановись:
+         системный аналитик ещё не закончил, планировать рано.
+      3. Первый раздел design.md - "## Upstream": ссылка store/change-id и сценарии,
+         которые матрица сценариев system.md относит к этому компоненту. Остальные
+         сценарии перечисли отдельно как "не затрагивается".
+      4. Контракты интеграций, модель данных и НФТ берутся из system.md как есть.
+         Отклоняться от них нельзя: нужна правка - запиши в "Вопросы к upstream" и
+         попроси СА поправить system.md.
+      5. Если бизнес-спека неполна или противоречива - НЕ додумывай поведение.
+         Запиши вопрос в "Вопросы к upstream" и предложи правку upstream-change.
+      - Обязательные разделы для frontend: "Экраны и состояния" (loading, empty,
+        error, success для каждого сценария; ошибки контракта из system.md -> что
+        видит пользователь), "Используемые контракты" (ссылки на контракты system.md;
+        до готовности backend - мок строго по контракту), "Аналитика", "Доступность".
+      - Не дублируй бизнес-логику, которая гарантируется backend: опиши, как UI
+        отражает результат.
+      Ниже - базовая инструкция OpenSpec. Где она говорит "proposal" - имеется в виду
+      upstream proposal из store.
+  tasks:
+    requires: [design]
+    instruction_suffix: |
+      КОРПОРАТИВНЫЕ ПРАВИЛА ДЛЯ TASKS:
+      - Каждая задача, реализующая бизнес-поведение, оканчивается трассировкой
+        `(covers: <capability>/<scenario>)` на сценарий из upstream-спеки.
+        Каждый сценарий из раздела "## Upstream" design.md должен быть покрыт хотя бы
+        одной задачей; это проверяет скил sdd-impl-verify.
+      - Тесты на сценарий пишутся в той же группе задач, что и реализация; в названии
+        или описании теста указывай тот же `<capability>/<scenario>`.
+      - Последняя группа: "Интеграция" - проверка с другими компонентами (контрактные
+        или e2e-тесты), если upstream затрагивает больше одного компонента.

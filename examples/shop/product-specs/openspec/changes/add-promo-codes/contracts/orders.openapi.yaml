@@ -1,0 +1,31 @@
+# Изменяемый контракт (СА): полная копия contracts/orders.openapi.yaml с изменениями.
+# Схемы Cart и PromoError - из cart.openapi.yaml 1.1.0 этого change.
+openapi: 3.0.3
+info: { title: Orders API, version: 1.1.0 }
+paths:
+  /api/v1/orders:
+    post:
+      summary: Оформить заказ из текущей корзины
+      responses:
+        "201": { description: Заказ создан, content: { application/json: { schema: { $ref: "#/components/schemas/Order" } } } }
+        "409":                     # НОВОЕ в 1.1.0
+          description: Промокод стал недействителен и снят с корзины, заказ не создан
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [error, cart]
+                properties:
+                  error: { $ref: "cart.openapi.yaml#/components/schemas/PromoError" }
+                  cart: { $ref: "cart.openapi.yaml#/components/schemas/Cart" }
+        "422": { description: Корзина пуста }
+components:
+  schemas:
+    Order:
+      type: object
+      required: [id, total]
+      properties:
+        id: { type: string }
+        total: { type: integer, description: "Итог в копейках с учётом скидки" }
+        promo_code: { type: string, description: "НОВОЕ: применённый промокод" }
+        discount: { type: integer, description: "НОВОЕ: скидка в копейках" }

@@ -1,0 +1,39 @@
+# Действующий контракт корзины. Обновляется при archive из changes/<id>/contracts/.
+openapi: 3.0.3
+info: { title: Cart API, version: 1.0.0 }
+paths:
+  /api/v1/cart:
+    get:
+      summary: Текущая корзина покупателя
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Cart" } } } }
+  /api/v1/cart/items:
+    post:
+      summary: Добавить товар в корзину
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [sku], properties: { sku: { type: string } } } } }
+      responses:
+        "200": { description: Товар добавлен, content: { application/json: { schema: { $ref: "#/components/schemas/Cart" } } } }
+        "422": { description: Товара нет в наличии, content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+components:
+  schemas:
+    Cart:
+      type: object
+      required: [items, total]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/CartItem" } }
+        total: { type: integer, description: "Итог в копейках" }
+    CartItem:
+      type: object
+      required: [sku, qty, price]
+      properties:
+        sku: { type: string }
+        qty: { type: integer, minimum: 1 }
+        price: { type: integer, description: "Цена в копейках" }
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string, enum: [OUT_OF_STOCK] }
+        message: { type: string, description: "Текст для покупателя" }

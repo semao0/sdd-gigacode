@@ -1,0 +1,33 @@
+---
+name: sdd-impl-verify
+description: Проверить implementation-change компонента против upstream бизнес-спеки из store - каждый сценарий покрыт задачами и тестами, задачи выполнены, контракт согласован. Используй перед MR, перед /opsx-archive, или когда спрашивают "всё ли реализовано по спеке".
+---
+
+Проверка только читает и отчитывается; ничего не исправляет без просьбы пользователя.
+
+1. Найди change (назван или единственный активный): прочитай `.openspec.yaml`,
+   возьми `initiative {store, id}`. Нет поля - ошибка "impl-change без upstream".
+2. Обнови store (`git -C <store-path> pull --ff-only`) и загрузи upstream:
+   активный - `openspec show <id> --store <store>`; если уже заархивирован - спеки из его
+   Capabilities через `openspec show <spec> --type spec --store <store>`.
+3. Собери множества:
+   - **M** - сценарии, которые матрица system.md относит к компоненту;
+   - **U** - сценарии из раздела "## Upstream" design.md;
+   - **T** - `covers: <capability>/<scenario>` в tasks.md;
+   - **C** - упоминания `<capability>/<scenario>` в тестах репозитория
+     (`git grep -n "<capability>/<scenario>"` по каталогам тестов).
+4. Проверки:
+   - M \ U или U \ M -> **дрейф upstream** (матрица СА изменилась, нужен resync через
+     sdd-impl-plan);
+   - U \ T - сценарий без задачи;
+   - T \ C - сценарий без теста;
+   - `covers:` на несуществующий сценарий - битая трассировка;
+   - `openspec status --change <name> --json` - невыполненные задачи;
+   - **соответствие контрактам system.md**: backend - каждый контракт из system.md
+     реализован в OpenAPI/AsyncAPI-файле репозитория, поля, типы, обязательность и коды
+     ошибок совпадают; frontend - клиент и моки используют те же поля и обрабатывают
+     все ошибки контракта. Расхождение - FAIL (правится код или через СА system.md);
+   - раздел "Вопросы к upstream" design.md пуст или все вопросы закрыты.
+   - `openspec validate <name> --strict`.
+5. Отчёт: таблица сценарий | задача | тест | статус, затем итог PASS / FAIL с
+   перечнем блокеров. PASS - можно открывать MR и после merge делать `/opsx-archive`.

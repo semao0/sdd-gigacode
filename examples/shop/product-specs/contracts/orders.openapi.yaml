@@ -1,0 +1,18 @@
+# Действующий контракт заказов. Обновляется при archive из changes/<id>/contracts/.
+openapi: 3.0.3
+info: { title: Orders API, version: 1.0.0 }
+paths:
+  /api/v1/orders:
+    post:
+      summary: Оформить заказ из текущей корзины
+      responses:
+        "201": { description: Заказ создан, content: { application/json: { schema: { $ref: "#/components/schemas/Order" } } } }
+        "422": { description: Корзина пуста }
+components:
+  schemas:
+    Order:
+      type: object
+      required: [id, total]
+      properties:
+        id: { type: string }
+        total: { type: integer, description: "Итог в копейках" }

@@ -1,0 +1,15 @@
+# Реестр компонентов продукта. Используется скилами sdd-*:
+#  - id попадает в раздел "Компоненты" system.md (его пишет системный аналитик);
+#  - schema - схема implementation-change в репозитории компонента;
+#  - repo - откуда клонировать; dir - имя каталога рядом со store в рабочей папке.
+components:
+  - id: backend
+    schema: impl-backend
+    repo: git@gitlab.example.com:shop/backend.git
+    dir: backend
+    owners: ["@ivanov"]
+  - id: frontend
+    schema: impl-frontend
+    repo: git@gitlab.example.com:shop/frontend.git
+    dir: frontend
+    owners: ["@petrova"]

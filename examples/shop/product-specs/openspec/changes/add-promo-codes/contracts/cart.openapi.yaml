@@ -1,0 +1,70 @@
+# Изменяемый контракт (СА): полная копия contracts/cart.openapi.yaml с изменениями.
+# При archive скил sdd-business-archive заменяет им файл в contracts/.
+openapi: 3.0.3
+info: { title: Cart API, version: 1.1.0 }
+paths:
+  /api/v1/cart:
+    get:
+      summary: Текущая корзина покупателя
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Cart" } } } }
+  /api/v1/cart/items:
+    post:
+      summary: Добавить товар в корзину
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [sku], properties: { sku: { type: string } } } } }
+      responses:
+        "200": { description: Товар добавлен, content: { application/json: { schema: { $ref: "#/components/schemas/Cart" } } } }
+        "422": { description: Товара нет в наличии, content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+  /api/v1/cart/promo:            # НОВОЕ в 1.1.0
+    put:
+      summary: Применить или заменить промокод (идемпотентно)
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [code], properties: { code: { type: string, maxLength: 32 } } } } }
+      responses:
+        "200": { description: Промокод применён, content: { application/json: { schema: { $ref: "#/components/schemas/Cart" } } } }
+        "422": { description: Промокод не применён, content: { application/json: { schema: { $ref: "#/components/schemas/PromoError" } } } }
+        "429": { description: "Слишком много неудачных попыток, заголовок Retry-After; без тела" }
+    delete:
+      summary: Убрать промокод (идемпотентно)
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Cart" } } } }
+components:
+  schemas:
+    Cart:
+      type: object
+      required: [items, total]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/CartItem" } }
+        promo: { $ref: "#/components/schemas/Promo" }                       # НОВОЕ, необязательное
+        discount: { type: integer, description: "Скидка в копейках" }       # НОВОЕ, необязательное
+        total: { type: integer, description: "Итог в копейках с учётом скидки, >= 0" }
+    CartItem:
+      type: object
+      required: [sku, qty, price]
+      properties:
+        sku: { type: string }
+        qty: { type: integer, minimum: 1 }
+        price: { type: integer, description: "Цена в копейках" }
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string, enum: [OUT_OF_STOCK] }
+        message: { type: string, description: "Текст для покупателя" }
+    Promo:
+      type: object
+      required: [code, kind, value]
+      properties:
+        code: { type: string }
+        kind: { type: string, enum: [percent, fixed] }
+        value: { type: integer, description: "Процент или копейки" }
+    PromoError:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string, enum: [PROMO_NOT_FOUND, PROMO_EXPIRED, PROMO_MIN_TOTAL, PROMO_LIMIT_REACHED, PROMO_INVALIDATED] }
+        message: { type: string, description: "Текст для покупателя" }
+        missing: { type: integer, description: "Сколько копеек не хватает до минимальной суммы (только PROMO_MIN_TOTAL)" }

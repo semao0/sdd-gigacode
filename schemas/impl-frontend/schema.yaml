@@ -1,0 +1,152 @@
+# СГЕНЕРИРОВАНО scripts/build-schemas.py из spec-driven + schemas-src/impl-frontend. Не править руками.
+name: impl-frontend
+version: 1
+description: Реализация бизнес-изменения из store в компоненте frontend - design → tasks
+artifacts:
+- id: design
+  generates: design.md
+  description: Технический дизайн frontend для upstream бизнес-изменения
+  template: design.md
+  instruction: |
+    КОРПОРАТИВНЫЙ КОНТЕКСТ. Это implementation-change компонента "frontend".
+    Бизнес-требования (ЧТО) лежат в store и здесь НЕ дублируются; здесь только КАК.
+    1. Прочитай .openspec.yaml этого change: поле initiative {store, id} указывает
+       на upstream-change в store. Если поля нет - остановись и попроси запустить
+       скил sdd-impl-plan, он его заполнит.
+    2. Загрузи upstream целиком: `openspec show <initiative.id> --store <initiative.store>`
+       (proposal + specs) и ОБЯЗАТЕЛЬНО system.md upstream-change - файл
+       `<путь store>/openspec/changes/<initiative.id>/system.md` (путь store:
+       `openspec store list --json`). Для заархивированного change ищи его в
+       `openspec/changes/archive/*-<initiative.id>/`. Нет system.md - остановись:
+       системный аналитик ещё не закончил, планировать рано.
+    3. Первый раздел design.md - "## Upstream": ссылка store/change-id и сценарии,
+       которые матрица сценариев system.md относит к этому компоненту. Остальные
+       сценарии перечисли отдельно как "не затрагивается".
+    4. Контракты интеграций, модель данных и НФТ берутся из system.md как есть.
+       Отклоняться от них нельзя: нужна правка - запиши в "Вопросы к upstream" и
+       попроси СА поправить system.md.
+    5. Если бизнес-спека неполна или противоречива - НЕ додумывай поведение.
+       Запиши вопрос в "Вопросы к upstream" и предложи правку upstream-change.
+    - Обязательные разделы для frontend: "Экраны и состояния" (loading, empty,
+      error, success для каждого сценария; ошибки контракта из system.md -> что
+      видит пользователь), "Используемые контракты" (ссылки на контракты system.md;
+      до готовности backend - мок строго по контракту), "Аналитика", "Доступность".
+    - Не дублируй бизнес-логику, которая гарантируется backend: опиши, как UI
+      отражает результат.
+    Ниже - базовая инструкция OpenSpec. Где она говорит "proposal" - имеется в виду
+    upstream proposal из store.
+
+    Create the design document that explains HOW to implement the change.
+
+    When to include design.md (create only if any apply):
+    - Cross-cutting change (multiple services/modules) or new architectural pattern
+    - New external dependency or significant data model changes
+    - Security, performance, or migration complexity
+    - Ambiguity that benefits from technical decisions before coding
+
+    Sections:
+    - **Context**: Only the current state and constraints needed to explain the approach. Reference the proposal for motivation instead of restating it (e.g., "See proposal.md - Why").
+    - **Goals / Non-Goals**: What this design achieves and explicitly excludes. Don't restate the proposal's scope - add only design-level boundaries.
+    - **Decisions**: Key technical choices with rationale (why X over Y?). Include alternatives considered for each decision.
+    - **Risks / Trade-offs**: Known limitations, things that could go wrong. Format: [Risk] → Mitigation
+    - **Migration Plan**: Steps to deploy, rollback strategy (if applicable)
+    - **Open Questions**: Unknowns that can safely be answered later without
+      changing the specs, the approach, or the task breakdown. Omit if none.
+
+    Open questions are for genuinely deferrable unknowns, not decisions you
+    skipped. If a question would change the specs, the chosen approach, or
+    the task breakdown, resolve it now - ask the user instead of guessing.
+
+    Focus on architecture and approach, not line-by-line implementation.
+    The proposal covers why and what; design covers how. Reference the
+    proposal for motivation and, once written, the specs for requirements -
+    if a section would only restate them, point to them instead.
+
+    Good design docs explain the "why" behind technical decisions.
+  requires: []
+- id: tasks
+  generates: tasks.md
+  description: Implementation checklist with trackable tasks
+  template: tasks.md
+  instruction: |
+    Create the task list that breaks down the implementation work.
+
+    Before writing tasks, check design.md for Open Questions. If any of them
+    would change what gets built, resolve them with the user first - do not
+    bake an unstated assumption into the task list.
+
+    **IMPORTANT: Follow the template below for tracked tasks.** The apply phase parses
+    checkbox format to track progress. A box holding only `x` counts as done,
+    upper or lower case and with any spacing, so `- [ x]` is done too. Every
+    other marker, including `- [~]`, `- [-]` and an empty `- []`, reads as
+    unfinished. A line with no checkbox is not tracked at all.
+
+    Guidelines:
+    - Group related tracked tasks under ## numbered headings
+    - Each tracked task MUST be a checkbox: `- [ ] X.Y Task description`
+    - Tasks should be small enough to complete in one session
+    - Order tasks by dependency (what must be done first?)
+    - Track implementation and verification work that can be completed before
+      archive. If the requested workflow includes archive or work that requires
+      this change to be archived, preserve those steps as plain bullets in an
+      optional `## Workflow follow-up` section at the end of tasks.md. These
+      bullets are reference information outside tracked task progress.
+    - Each task MUST state how to verify completion (a test, command,
+      observable behavior, or delivered artifact). Put the verification in
+      that task's checkbox description. Use a separate verification task only
+      when it checks broader integration or system behavior that spans
+      multiple implementation tasks.
+    - Each task group MUST land the tests and documentation its own work
+      calls for. Do NOT collect testing or documentation into a final group -
+      when a late group first exercises work from an early one, the failures
+      cascade back through every group in between and force rework. A group
+      whose work calls for neither, such as scaffolding or dependency setup,
+      carries neither. A final group is for integration checks only, not for
+      the tests and docs an earlier group owed.
+
+    Example:
+    ```
+    # Tasks
+
+    ## 1. Setup
+
+    - [ ] 1.1 Create new module structure and verify expected files are present
+    - [ ] 1.2 Add dependencies to package.json and verify package installation succeeds
+
+    ## 2. Core Implementation
+
+    - [ ] 2.1 Implement data export function and verify the export test passes
+    - [ ] 2.2 Add CSV formatting utilities and verify unit tests cover quoting and delimiters
+    - [ ] 2.3 Document the export API in docs/export.md and verify the documented command runs as written
+    ```
+
+    When applicable, append workflow follow-up as plain bullets, for example:
+    ```
+    ## Workflow follow-up
+
+    - Archive the change after the project's review requirements are satisfied.
+    - Verify the archived result.
+    ```
+
+    Reference specs for what needs to be built, design for how to build it.
+
+    КОРПОРАТИВНЫЕ ПРАВИЛА ДЛЯ TASKS:
+    - Каждая задача, реализующая бизнес-поведение, оканчивается трассировкой
+      `(covers: <capability>/<scenario>)` на сценарий из upstream-спеки.
+      Каждый сценарий из раздела "## Upstream" design.md должен быть покрыт хотя бы
+      одной задачей; это проверяет скил sdd-impl-verify.
+    - Тесты на сценарий пишутся в той же группе задач, что и реализация; в названии
+      или описании теста указывай тот же `<capability>/<scenario>`.
+    - Последняя группа: "Интеграция" - проверка с другими компонентами (контрактные
+      или e2e-тесты), если upstream затрагивает больше одного компонента.
+  requires:
+  - design
+apply:
+  requires:
+  - tasks
+  tracks: tasks.md
+  instruction: 'Read context files, work through pending tasks, mark complete as you go.
+
+    Pause if you hit blockers or need clarification.
+
+    '

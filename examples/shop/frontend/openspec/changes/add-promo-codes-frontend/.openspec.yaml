@@ -1,0 +1,6 @@
+schema: impl-frontend
+created: 2026-10-09
+skip_specs: true
+initiative:
+  store: shop
+  id: add-promo-codes

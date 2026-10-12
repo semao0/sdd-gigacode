@@ -1,0 +1,6 @@
+schema: impl-frontend
+created: 2026-07-31
+skip_specs: true
+initiative:
+  store: shop
+  id: add-cart
