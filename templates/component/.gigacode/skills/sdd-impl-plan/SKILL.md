@@ -23,10 +23,16 @@ description: Завести (или пересинхронизировать) im
 3. Если компонента нет в "Компоненты" system.md - скажи об этом и не создавай change,
    пока пользователь не подтвердит (вопрос к СА).
 4. Режим: если в `openspec/changes/*/.openspec.yaml` уже есть `initiative.id == <id>` -
-   это **resync**, иначе **новый**.
+   это **resync**, иначе **новый**. По умолчанию у фичи один impl-change на компонент,
+   даже если над ней работают несколько разработчиков: задачи делятся группами в tasks.md.
+   Отдельный impl-change на часть (`<id>-<component>-<part>`) заводи, только если
+   пользователь явно попросил и часть независима: свой design, общих таблиц и
+   эндпоинтов с другой частью нет. В его design.md в `## Upstream` укажи соседние
+   impl-changes этой фичи и что решено у них.
 
 ## 3. Новый change
-1. `openspec new change <id>-<component>` (например `add-promo-codes-backend`).
+1. `openspec new change <id>-<component>` (например `shop-142-add-promo-codes-backend`),
+   для отдельной части - `<id>-<component>-<part>`.
 2. Допиши в конец `openspec/changes/<name>/.openspec.yaml` (ключи не дублируй):
    ```yaml
    initiative:

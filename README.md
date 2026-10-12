@@ -8,9 +8,10 @@ Spec-driven development для продукта из нескольких ком
 **команды** design + tasks → код → archive в компонентах → archive в store.
 
 - [docs/01-storage-adr.md](docs/01-storage-adr.md): где и почему хранятся спеки (решение по store)
-- [docs/02-process.md](docs/02-process.md): роли, жизненный цикл фичи, гейты, частные случаи, CI
+- [docs/02-process.md](docs/02-process.md): роли, жизненный цикл фичи, гейты, частные случаи, проверки (pre-push, CI)
 - [docs/03-metrics.md](docs/03-metrics.md): метрики процесса — что значат и как считать
 - [examples/shop](examples/shop/README.md): пример store, backend и frontend на одной фиче
+- [TODO.md](TODO.md): отложенные задачи (тест-кейсы QA в Jira, CI-гейт archive и др.)
 
 Проверено на OpenSpec **1.14.1**. Stores в beta, версия зафиксирована в `scripts/common.sh`.
 
@@ -30,6 +31,8 @@ scripts/
   bootstrap-store.sh  создание store
   bootstrap-component.sh  подключение репозитория компонента
   ci-check.sh         validate --strict + проверка ссылок на upstream
+  pre-push.sh         ci-check.sh из git pre-push хука, если менялся openspec/
+  metrics.py          отчёт по метрикам (docs/03-metrics.md) в Markdown, запуск из store
 ```
 
 ## Скилы (GigaCode)

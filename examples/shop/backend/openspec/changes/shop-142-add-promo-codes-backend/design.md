@@ -2,7 +2,7 @@
 
 ## Upstream
 
-`shop/add-promo-codes` @ `a1b2c3d` (system.md смержен 2026-10-07, DoR).
+`shop/shop-142-add-promo-codes` @ `a1b2c3d` (system.md смержен 2026-10-07, DoR).
 
 Реализует backend:
 - `checkout/promo-codes/Успешное применение`
@@ -29,7 +29,7 @@
 ## Реализация контрактов
 
 - `api/openapi/cart.yaml` и `api/openapi/orders.yaml` — копии 1:1 контрактов 1.1.0 из
-  `product-specs/openspec/changes/add-promo-codes/contracts/`, контрактный тест сравнивает схемы.
+  `product-specs/openspec/changes/shop-142-add-promo-codes/contracts/`, контрактный тест сравнивает схемы.
 - `PUT /api/v1/cart/promo`: нормализация `trim().toUpperCase()`, проверки по порядку:
   существование → срок → лимит → минимальная сумма. Первая проваленная → `422` с кодом из контракта.
 - `DELETE /api/v1/cart/promo`: всегда `200`.

@@ -3,4 +3,4 @@ created: 2026-07-30
 skip_specs: true
 initiative:
   store: shop
-  id: add-cart
+  id: shop-101-add-cart

@@ -6,6 +6,9 @@ OPENSPEC_PINNED="1.14.1"
 OPENSPEC="${OPENSPEC:-openspec}"
 # AI-ассистент: gigacode (по умолчанию), qwen, claude и др. - см. `openspec init --help`.
 SDD_TOOL="${SDD_TOOL:-gigacode}"
+# id change: <ключ Jira в нижнем регистре>-<slug>, например shop-142-add-promo-codes.
+# У impl-change к нему добавляется -<component>.
+SDD_CHANGE_ID_RE="${SDD_CHANGE_ID_RE:-^[a-z][a-z0-9]*-[0-9]+(-[a-z0-9]+)+$}"
 
 check_openspec() {
   command -v "$OPENSPEC" >/dev/null || { echo "openspec не найден: npm i -g @fission-ai/openspec@$OPENSPEC_PINNED" >&2; exit 1; }

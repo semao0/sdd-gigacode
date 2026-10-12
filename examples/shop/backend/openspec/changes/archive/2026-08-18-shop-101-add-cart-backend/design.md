@@ -2,7 +2,7 @@
 
 ## Upstream
 
-`shop/add-cart` @ `9f8e7d6`. Реализует `checkout/cart/Товар в наличии`, `checkout/cart/Товара нет в наличии`,
+`shop/shop-101-add-cart` @ `9f8e7d6`. Реализует `checkout/cart/Товар в наличии`, `checkout/cart/Товара нет в наличии`,
 `checkout/cart/Итог без скидки`, `checkout/cart/Пустая корзина`. Не затрагивается: —
 
 ## Context

@@ -2,7 +2,7 @@
 
 ## Upstream
 
-`shop/add-promo-codes` @ `a1b2c3d` (system.md смержен 2026-10-07, DoR).
+`shop/shop-142-add-promo-codes` @ `a1b2c3d` (system.md смержен 2026-10-07, DoR).
 
 Реализует frontend:
 - `checkout/promo-codes/Успешное применение`
