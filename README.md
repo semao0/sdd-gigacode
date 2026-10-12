@@ -9,6 +9,7 @@ Spec-driven development для продукта из нескольких ком
 
 - [docs/01-storage-adr.md](docs/01-storage-adr.md): где и почему хранятся спеки (решение по store)
 - [docs/02-process.md](docs/02-process.md): роли, жизненный цикл фичи, гейты, частные случаи, CI
+- [docs/03-metrics.md](docs/03-metrics.md): метрики процесса — что значат и как считать
 - [examples/shop](examples/shop/README.md): пример store, backend и frontend на одной фиче
 
 Проверено на OpenSpec **1.14.1**. Stores в beta, версия зафиксирована в `scripts/common.sh`.
