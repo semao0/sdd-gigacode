@@ -16,7 +16,7 @@
 
 ```
 product-specs/                             ← STORE, schema: business
-  components.yaml                          ← реестр компонентов: id, схема, repo
+  components.yaml                          ← реестр компонентов: id, описание, схема, repo
   contracts/                               ← действующие OpenAPI/AsyncAPI (СА)
   openspec/
     specs/<domain>/<capability>/spec.md    ← действующие бизнес-спеки

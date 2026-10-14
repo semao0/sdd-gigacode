@@ -13,5 +13,6 @@ sed -e "s/__SCHEMA__/$SCHEMA/" -e "s/__STORE_ID__/$STORE/" -e "s/__COMPONENT__/$
   "$SDD_ROOT/templates/component/openspec/config.yaml" > "$DIR/openspec/config.yaml"
 [ -n "$STORE_REMOTE" ] || sed -i "s|- { id: $STORE, remote: \"\" }|- $STORE|" "$DIR/openspec/config.yaml"
 copy_skills component "$DIR"
+"$SDD_ROOT/scripts/install-hook.sh" "$DIR" || true
 (cd "$DIR" && "$OPENSPEC" doctor) || echo "doctor: зарегистрируйте store: openspec store register <path-to-store>" >&2
 echo "Компонент '$COMP' подключён к store '$STORE'. Закоммитьте openspec/ и .$SDD_TOOL/."

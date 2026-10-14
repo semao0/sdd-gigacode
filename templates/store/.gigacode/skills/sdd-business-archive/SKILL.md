@@ -16,13 +16,24 @@ description: Заархивировать бизнес-change в store (влит
 4. `openspec validate <change-id> --strict`.
 
 ## Archive
-1. Ветка `archive/<change-id>`.
+1. Работа идёт в ветке `archive/<change-id>` (см. шаг 6), в main не коммить.
 2. Если в `openspec/changes/<change-id>/contracts/` есть файлы, скопируй их в `contracts/`
    в корне store (замена целиком): это действующие контракты продукта. OpenSpec сам этого
    не делает.
 3. `openspec archive <change-id> -y`.
-4. Проверь результат: `git diff --stat`, `openspec list --specs` - изменились именно
-   спеки из Capabilities proposal.
-5. Коммит `spec: archive <change-id>`, push, MR (ревьюеры - БА и СА).
-6. Сообщи: после merge сводка бизнес-спек в referenced-индексе компонентов обновится
+4. У новой capability (в том числе `integration/` от СА) `openspec archive` пишет в
+   `## Purpose` заглушку, и `validate --strict` её не пропускает. Замени заглушку в
+   `openspec/specs/<capability>/spec.md` на назначение capability: возьми его из proposal
+   или system.md.
+5. Проверь результат: `git diff --stat`, `openspec list --specs` - изменились спеки из
+   Capabilities proposal и `integration/` из change. `openspec validate --specs --strict`
+   должен пройти: иначе после merge упадёт ci-check в main store.
+6. Ветка `archive/<change-id>`: `git switch -c archive/<change-id>` от актуального main
+   (уже есть - `git switch archive/<change-id>`;
+   незакоммиченные файлы переходят вместе с ней).
+   В main не коммить: `git branch --show-current` должен вернуть `archive/<change-id>`.
+7. Коммит `spec: archive <change-id>`, `git push -u origin archive/<change-id>`.
+8. PR в main открывает и мержит человек, ты не мержишь.
+   Назови ветку и ревьюеров: БА и СА.
+9. Сообщи: после merge сводка бизнес-спек в referenced-индексе компонентов обновится
    у всех после `git pull` store.

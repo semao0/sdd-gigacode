@@ -13,13 +13,14 @@ delta `specs/integration/...`) в существующем бизнес-change. 
    proposal и specs должны быть готовы, а бизнес-часть - смержена в main
    (`git log origin/HEAD -- openspec/changes/<id>/proposal.md` не пуст). Иначе остановись:
    бизнес-спека ещё не согласована.
-3. Ветка `system/<id>`.
+3. Работа идёт в ветке `system/<id>` (см. раздел 5), в main не коммить.
 4. Режим **правка**: system.md уже есть - пользователь принёс вопросы из раздела
    "Вопросы к upstream" design.md компонентов или сам меняет контракт.
 
 ## 2. Сбор контекста
 - `openspec show <id>` - proposal и бизнес-сценарии.
-- `components.yaml` - допустимые компоненты.
+- `components.yaml` - допустимые компоненты; кого затрагивает фича, решай по `description`,
+  он же основа строк раздела "Компоненты".
 - Действующие контракты: `openspec list --specs --json` (домен `integration/`),
   `openspec/changes/archive/*/system.md` по тем же capability, действующие контракты в
   `contracts/` в корне store (изменяемый файл копируется в `openspec/changes/<id>/contracts/`).
@@ -43,8 +44,14 @@ SLA), требования ИБ и ПДн, порядок выкатки. Сво
 4. `openspec validate <id> --strict`.
 
 ## 5. Передача
-1. Коммит, push, MR в store. Ревьюеры: техлиды всех компонентов из "Компоненты"
-   (owners в components.yaml) и бизнес-аналитик (только на отсутствие искажений смысла).
-2. Merge = **Definition of Ready**: команды запускают `sdd-impl-plan`.
-3. В режиме правки после merge перечисли изменённые контракты и сценарии - командам
+1. Ветка `system/<id>`: `git switch -c system/<id>` от актуального main
+   (уже есть - `git switch system/<id>`;
+   незакоммиченные файлы переходят вместе с ней).
+   В main не коммить: `git branch --show-current` должен вернуть `system/<id>`.
+2. Коммит `system: <id>`, `git push -u origin system/<id>`.
+3. PR в main открывает и мержит человек, ты не мержишь.
+   Назови ветку и ревьюеров: техлиды всех компонентов из "Компоненты"
+   (назначаются по CODEOWNERS store) и бизнес-аналитик (только на отсутствие искажений смысла).
+4. Merge = **Definition of Ready**: команды запускают `sdd-impl-plan`.
+5. В режиме правки после merge перечисли изменённые контракты и сценарии - командам
    нужен resync (`sdd-impl-plan`).

@@ -32,6 +32,8 @@ scripts/
   bootstrap-component.sh  подключение репозитория компонента
   ci-check.sh         validate --strict + проверка ссылок на upstream
   pre-push.sh         ci-check.sh из git pre-push хука, если менялся openspec/
+  install-hook.sh     подключить этот хук в клоне (свой, Gradle-копия, husky, .githooks)
+  dev-setup.sh        настройка разработчика: store, sdd.home, хук, doctor
   metrics.py          отчёт по метрикам (docs/03-metrics.md) в Markdown, запуск из store
 ```
 
@@ -64,11 +66,13 @@ scripts/bootstrap-store.sh product ~/work/shop/product-specs git@gitlab.example.
 scripts/bootstrap-component.sh ~/work/shop/backend  backend  backend  product git@gitlab.example.com:shop/product-specs.git
 scripts/bootstrap-component.sh ~/work/shop/frontend frontend frontend product git@gitlab.example.com:shop/product-specs.git
 
-# 3. каждый разработчик (один раз на машину)
-git clone git@gitlab.example.com:shop/product-specs.git ~/work/shop/product-specs
-openspec store register ~/work/shop/product-specs
-openspec doctor        # в репозитории компонента: reference product → ok
+# 3. каждый разработчик (один раз на клон): клонирует и регистрирует store, ставит pre-push хук
+git clone <sdd> ~/tools/sdd
+~/tools/sdd/scripts/dev-setup.sh ~/work/shop/backend ~/work/shop/frontend
 ```
+
+Если `dev-setup.sh` правил хук-исходник в репозитории (например, `.scripts/pre-push`, который
+копирует Gradle), он напишет, какой файл закоммитить. После этого коллегам хватает `git pull`.
 
 Рекомендуемая раскладка: store и компоненты лежат рядом в одной папке
 (`~/work/<product>/`), там их ищет `sdd-initiative-status` (иначе нужен `SDD_WORKSPACE`).

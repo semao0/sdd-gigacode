@@ -12,4 +12,5 @@ cp "$SDD_ROOT/templates/store/components.yaml" "$DIR/components.yaml"
 copy_skills store "$DIR"
 touch "$DIR/openspec/specs/.gitkeep" "$DIR/openspec/changes/archive/.gitkeep"
 git -C "$DIR" add -A && git -C "$DIR" commit -qm "chore: SDD store bootstrap" || true
+"$SDD_ROOT/scripts/install-hook.sh" "$DIR" || true
 echo "Store '$ID' готов: $DIR. Заполните components.yaml и запушьте."
