@@ -60,9 +60,9 @@ npm i -g @fission-ai/openspec@1.14.1
 
 # 1. store (один раз на продукт)
 scripts/bootstrap-store.sh product ~/work/shop/product-specs git@gitlab.example.com:shop/product-specs.git
-#    → заполнить components.yaml, git push
+#    → заполнить components.yaml и openspec/specs/business_spec.md (глоссарий, роли, домены), git push
 
-# 2. каждый репозиторий компонента (один раз)
+# 2. каждый репозиторий компонента (один раз); правила сервиса для агента - GIGACODE.md в корне
 scripts/bootstrap-component.sh ~/work/shop/backend  backend  backend  product git@gitlab.example.com:shop/product-specs.git
 scripts/bootstrap-component.sh ~/work/shop/frontend frontend frontend product git@gitlab.example.com:shop/product-specs.git
 

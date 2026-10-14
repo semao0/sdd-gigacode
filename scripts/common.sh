@@ -16,6 +16,10 @@ check_openspec() {
   [ "$v" = "$OPENSPEC_PINNED" ] || echo "ВНИМАНИЕ: openspec $v, методология проверена на $OPENSPEC_PINNED" >&2
 }
 
+context_file() { # контекстный файл агента в корне репо: его агент читает сам при любой задаче
+  case "$SDD_TOOL" in gigacode) echo GIGACODE.md;; claude) echo CLAUDE.md;; qwen) echo QWEN.md;; gemini) echo GEMINI.md;; *) echo AGENTS.md;; esac
+}
+
 copy_skills() { # <kind: store|component> <dest repo>
   # Формат SKILL.md (name + description) одинаков у GigaCode, Qwen Code и Claude Code.
   mkdir -p "$2/.$SDD_TOOL/skills"

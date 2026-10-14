@@ -19,6 +19,9 @@ product-specs/                             ← STORE, schema: business
   components.yaml                          ← реестр компонентов: id, описание, схема, repo
   contracts/                               ← действующие OpenAPI/AsyncAPI (СА)
   openspec/
+    specs/business_spec.md                 ← продукт: глоссарий, роли, домены (без требований)
+    specs/<domain>/business_spec.md        ← домен: зачем, термины, бизнес-правила
+    specs/<domain>/func_spec.md            ← домен: сквозные сценарии, связи с другими доменами
     specs/<domain>/<capability>/spec.md    ← действующие бизнес-спеки
     specs/integration/<capability>/spec.md ← поведение на границах компонентов (СА)
     changes/<change>/
@@ -28,6 +31,7 @@ product-specs/                             ← STORE, schema: business
       contracts/                           ← СА: изменяемые контракты
 
 backend/                                   ← schema: impl-backend (frontend устроен так же: impl-frontend)
+  GIGACODE.md                              ← правила проектирования и кода сервиса (контекст агента)
   openspec/config.yaml                     ← references: [product-specs]
   openspec/changes/<change>-backend/
     .openspec.yaml                         ← initiative: {store, id} — ссылка на change в store

@@ -12,6 +12,8 @@ frontend работает на моках. Предыдущая фича `shop-1
 product-specs/                                 ← STORE (БА + СА)
   components.yaml                              ← backend, frontend
   contracts/{cart,orders}.openapi.yaml         ← действующие контракты 1.0.0
+  openspec/specs/business_spec.md              ← продукт: глоссарий, роли, домены
+  openspec/specs/checkout/{business,func}_spec.md ← домен: правила и сквозные сценарии
   openspec/specs/checkout/cart/spec.md         ← действующая спека (после archive shop-101-add-cart)
   openspec/changes/
     shop-142-add-promo-codes/                  ← АКТИВНАЯ фича
@@ -24,6 +26,7 @@ product-specs/                                 ← STORE (БА + СА)
     archive/2026-08-20-shop-101-add-cart/      ← закрытая фича, system.md как история решений
 
 backend/                                       ← schema: impl-backend
+  GIGACODE.md                                  ← правила сервиса для агента
   openspec/config.yaml                         ← references: shop
   openspec/changes/shop-142-add-promo-codes-backend/
     .openspec.yaml                             ← initiative: {store: shop, id: shop-142-add-promo-codes}

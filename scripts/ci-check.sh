@@ -21,4 +21,10 @@ for meta in openspec/changes/*/.openspec.yaml; do
     echo "ERROR: $meta: impl-change без initiative (ссылки на store)"; fail=1
   fi
 done
+# Блокирующие открытые вопросы не валят CI (ветку spec/ можно обсуждать), но видны в PR:
+# с ними system-design, impl-plan и archive останавливаются.
+for f in openspec/changes/*/proposal.md openspec/changes/*/system.md; do
+  awk '/^## /{s=($0 ~ /^## Открытые вопросы/)} s && /\[блокирующий\]/' "$f" |
+    sed "s|^|WARNING: $f: |"
+done
 exit $fail
