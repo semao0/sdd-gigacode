@@ -1,4 +1,4 @@
-# schema подставляется bootstrap-component.sh: impl-backend | impl-frontend
+# schema подставляет sdd component-init: impl-backend | impl-frontend
 schema: impl-backend
 
 # Бизнес-спеки читаются из store (read-only). Правки бизнес-требований - только

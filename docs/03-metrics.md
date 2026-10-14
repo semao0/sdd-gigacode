@@ -4,7 +4,7 @@
 Почти всё считается из git: даты merge веток `spec/`, `system/`, `archive/` в store и
 `.openspec.yaml` в репозиториях компонентов.
 
-**Готовый отчёт:** из корня store `python3 <sdd>/scripts/metrics.py [--since 3.months]` выводит
+**Готовый отчёт:** из корня store `python3 <sdd>/tools/metrics.py [--since 3.months]` выводит
 все метрики в Markdown. Клоны компонентов он ищет рядом со store по `components.yaml`;
 перед запуском сделайте `git pull` везде. Команды ниже — что он считает, их можно
 запускать и по отдельности.

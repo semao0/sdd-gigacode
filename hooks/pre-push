@@ -1,0 +1,15 @@
+#!/bin/sh
+# SDD: перед push проверяет openspec/ (sdd check), если он менялся в ветке.
+#
+# Подключение (один раз на клон, после sdd setup):
+#   cp "$SDD_HOME/hooks/pre-push" "$(git rev-parse --git-path hooks)/pre-push"
+# Если в репозитории уже есть свой pre-push хук - вызовите этот файл первой строкой из него:
+#   "$SDD_HOME/hooks/pre-push" "$@" || exit 1
+#
+# Разово пропустить: SDD_SKIP=1 git push
+sdd="${SDD_HOME:-$(git config sdd.home 2>/dev/null)}"
+if [ ! -x "$sdd/scripts/sdd" ]; then
+  echo "sdd pre-push: не найден SDD (запустите scripts/sdd setup или задайте SDD_HOME), проверка пропущена" >&2
+  exit 0
+fi
+exec "$sdd/scripts/sdd" check --pre-push "$@"

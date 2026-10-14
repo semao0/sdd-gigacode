@@ -1,4 +1,4 @@
-# СГЕНЕРИРОВАНО scripts/build-schemas.py из spec-driven + schemas-src/impl-backend. Не править руками.
+# СГЕНЕРИРОВАНО tools/build-schemas.py из spec-driven + schemas-src/impl-backend. Не править руками.
 name: impl-backend
 version: 1
 description: Реализация бизнес-изменения из store в компоненте backend - design → tasks

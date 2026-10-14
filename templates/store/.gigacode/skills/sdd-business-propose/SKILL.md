@@ -56,7 +56,7 @@ design/tasks - команды. Код компонентов ты не трог�
 2. Новый change: `openspec new change <jira-key>-<slug>` (схема `business` берётся из config).
    Ключ задачи Jira спроси у пользователя и запиши в нижнем регистре; slug называй по
    бизнес-смыслу: `shop-142-add-promo-codes`, а не `shop-142-promo-api`. Без ключа Jira
-   change не создавай - ci-check.sh его не пропустит.
+   change не создавай - `sdd check` его не пропустит.
 3. Для каждого артефакта: `openspec instructions <artifact> --change <id> --json`
    и пиши файл строго по инструкции и шаблону: proposal, затем specs. Артефакт `system` не трогай.
 4. `openspec validate <id> --strict` - исправляй, пока не станет valid.

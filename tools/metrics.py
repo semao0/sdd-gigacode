@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Отчёт по метрикам SDD-процесса (docs/03-metrics.md) в Markdown.
 
-Запуск из корня store: python3 <sdd>/scripts/metrics.py [--since 3.months] [--ref main]
+Запуск из корня store: python3 <sdd>/tools/metrics.py [--since 3.months] [--ref main]
 Репозитории компонентов ищутся в рабочей папке (по умолчанию - родитель store) по полю
 dir из components.yaml, как у скила sdd-initiative-status. Нужны только git и Python 3.
 Перед запуском сделайте git pull в store и компонентах: считается по их локальной ветке --ref.

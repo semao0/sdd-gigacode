@@ -4,8 +4,8 @@
 бизнес- и системные требования смержены (DoR пройден), backend наполовину реализован,
 frontend работает на моках. Предыдущая фича `shop-101-add-cart` уже закрыта (DoD).
 
-Все три репозитория проходят `openspec validate --all --strict` и `scripts/ci-check.sh`
-(OpenSpec 1.14.1). Здесь опущено то, что ставит `bootstrap-*.sh`: `.git/`, `.gigacode/`
+Все три репозитория проходят `openspec validate --all --strict` и `scripts/sdd check`
+(OpenSpec 1.14.1). Здесь опущено то, что ставят `sdd store-init` и `sdd component-init`: `.git/`, `.gigacode/`
 (скилы) и `openspec/schemas/` (копия `schemas/`).
 
 ```

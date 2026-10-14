@@ -1,10 +1,10 @@
-# schema подставляется bootstrap-component.sh: impl-backend | impl-frontend
+# schema подставляет sdd component-init: impl-backend | impl-frontend
 schema: __SCHEMA__
 
 # Бизнес-спеки читаются из store (read-only). Правки бизнес-требований - только
 # через change в store.
 references:
-  # remote нужен, чтобы openspec doctor выдал коллеге готовую команду clone+register
+  # по remote sdd setup клонирует store рядом и регистрирует его (и openspec doctor подскажет команду)
   - { id: __STORE_ID__, remote: "__STORE_REMOTE__" }
 
 context: |

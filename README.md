@@ -13,7 +13,7 @@ Spec-driven development для продукта из нескольких ком
 - [examples/shop](examples/shop/README.md): пример store, backend и frontend на одной фиче
 - [TODO.md](TODO.md): отложенные задачи (тест-кейсы QA в Jira, CI-гейт archive и др.)
 
-Проверено на OpenSpec **1.14.1**. Stores в beta, версия зафиксирована в `scripts/common.sh`.
+Проверено на OpenSpec **1.14.1**. Stores в beta, версия зафиксирована в `scripts/sdd` (`OPENSPEC_PINNED`).
 
 ## Состав
 
@@ -22,18 +22,18 @@ schemas-src/          исходники схем: overlay поверх встр
   business/           store: proposal → specs (БА) → system (СА)
   impl-backend/       компонент: design (реализация контрактов, БД) → tasks
   impl-frontend/      компонент: design (экраны/состояния) → tasks
-schemas/              собранные схемы (scripts/build-schemas.py), копируются в репозитории
+schemas/              собранные схемы (tools/build-schemas.py), копируются в репозитории
 templates/store/      config.yaml, components.yaml, скилы store (.gigacode/skills)
 templates/component/  config.yaml (references на store), скилы компонента (.gigacode/skills)
 examples/shop/        пример трёх репозиториев с заполненными спеками
-scripts/
+scripts/sdd           единый CLI (Python 3.8+):
+                        store-init      создание store
+                        component-init  подключение репозитория компонента (интерактивно)
+                        setup           настройка клона: store, sdd.home, doctor
+                        check           validate --strict + правила SDD (pre-push хук и CI)
+hooks/pre-push        pre-push хук: sdd check, если в ветке менялся openspec/
+tools/
   build-schemas.py    пересборка схем (после обновления OpenSpec)
-  bootstrap-store.sh  создание store
-  bootstrap-component.sh  подключение репозитория компонента
-  ci-check.sh         validate --strict + проверка ссылок на upstream
-  pre-push.sh         ci-check.sh из git pre-push хука, если менялся openspec/
-  install-hook.sh     подключить этот хук в клоне (свой, Gradle-копия, husky, .githooks)
-  dev-setup.sh        настройка разработчика: store, sdd.home, хук, doctor
   metrics.py          отчёт по метрикам (docs/03-metrics.md) в Markdown, запуск из store
 ```
 
@@ -57,30 +57,35 @@ scripts/
 
 ```bash
 npm i -g @fission-ai/openspec@1.14.1
+pip install --user pyyaml          # нужен store-init/component-init/setup; check обходится без него
+git clone <sdd> ~/tools/sdd
 
 # 1. store (один раз на продукт)
-scripts/bootstrap-store.sh product ~/work/shop/product-specs git@gitlab.example.com:shop/product-specs.git
+~/tools/sdd/scripts/sdd store-init product ~/work/shop/product-specs git@gitlab.example.com:shop/product-specs.git
 #    → заполнить components.yaml и openspec/specs/business_spec.md (глоссарий, роли, домены), git push
 
 # 2. каждый репозиторий компонента (один раз); правила сервиса для агента - GIGACODE.md в корне
-scripts/bootstrap-component.sh ~/work/shop/backend  backend  backend  product git@gitlab.example.com:shop/product-specs.git
-scripts/bootstrap-component.sh ~/work/shop/frontend frontend frontend product git@gitlab.example.com:shop/product-specs.git
+cd ~/work/shop/backend && ~/tools/sdd/scripts/sdd component-init
+#    спросит store (зарегистрированный или URL - склонирует рядом) и компонент из его
+#    components.yaml; тип и remote берёт оттуда же. Без вопросов (CI, скрипты):
+#    sdd component-init <repo> --component <id> --store <store-id> [--kind backend|frontend] [--remote URL]
 
-# 3. каждый разработчик (один раз на клон): клонирует и регистрирует store, ставит pre-push хук
-git clone <sdd> ~/tools/sdd
-~/tools/sdd/scripts/dev-setup.sh ~/work/shop/backend ~/work/shop/frontend
+# 3. каждый разработчик (один раз на клон): клонирует и регистрирует store
+~/tools/sdd/scripts/sdd setup ~/work/shop/backend ~/work/shop/frontend
+#    и подключает pre-push хук - setup в конце напишет команду:
+cp ~/tools/sdd/hooks/pre-push .git/hooks/pre-push
 ```
 
-Если `dev-setup.sh` правил хук-исходник в репозитории (например, `.scripts/pre-push`, который
-копирует Gradle), он напишет, какой файл закоммитить. После этого коллегам хватает `git pull`.
+Если в репозитории уже есть свой pre-push хук (husky, Gradle, lefthook), вызовите SDD-хук
+первой строкой из него: `"$SDD_HOME/hooks/pre-push" "$@" || exit 1`.
 
 Рекомендуемая раскладка: store и компоненты лежат рядом в одной папке
 (`~/work/<product>/`), там их ищет `sdd-initiative-status` (иначе нужен `SDD_WORKSPACE`).
 
 ## Обновление OpenSpec
 
-1. Поднять `OPENSPEC_PINNED` в `scripts/common.sh`.
-2. `scripts/build-schemas.py` подтягивает новые базовые инструкции spec-driven.
+1. Поднять `OPENSPEC_PINNED` в `scripts/sdd`.
+2. `tools/build-schemas.py` подтягивает новые базовые инструкции spec-driven.
 3. Проверить e2e в песочнице: store → change (proposal, specs, system) → impl-change в двух компонентах →
-   `ci-check.sh` → archive компонентов → archive store.
-4. Перекатить `schemas/` и скилы в репозитории (`bootstrap-*.sh` идемпотентны) и выполнить `openspec update`.
+   `sdd check` → archive компонентов → archive store.
+4. Перекатить `schemas/` и скилы в репозитории (`sdd store-init` и `sdd component-init` идемпотентны) и выполнить `openspec update`.

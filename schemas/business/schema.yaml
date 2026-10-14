@@ -1,4 +1,4 @@
-# СГЕНЕРИРОВАНО scripts/build-schemas.py из spec-driven + schemas-src/business. Не править руками.
+# СГЕНЕРИРОВАНО tools/build-schemas.py из spec-driven + schemas-src/business. Не править руками.
 name: business
 version: 1
 description: Изменение в store - proposal → specs (бизнес-аналитик) → system (системный аналитик); design/tasks живут в репозиториях компонентов

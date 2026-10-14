@@ -83,7 +83,7 @@ description: Завести (или пересинхронизировать) im
    (уже есть - `git switch feat/<name>`;
    незакоммиченные файлы переходят вместе с ней).
    В main не коммить: `git branch --show-current` должен вернуть `feat/<name>`.
-2. Коммит `plan: <name>`, `git push -u origin feat/<name>`. Если pre-push хук (ci-check) упал - исправь.
+2. Коммит `plan: <name>`, `git push -u origin feat/<name>`. Если pre-push хук (`sdd check`) упал - исправь.
 3. PR (план, по желанию вместе с кодом) открывает и мержит человек, ты не мержишь.
    Назови ветку и ревьюеров: техлид компонента.
 

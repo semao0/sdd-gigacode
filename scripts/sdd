@@ -1,0 +1,440 @@
+#!/usr/bin/env python3
+"""SDD: подключение store и компонентов к OpenSpec, настройка клона, проверки.
+
+  sdd store-init <store-id> <path> [remote]   создать store бизнес-спек (один раз на продукт)
+  sdd component-init [repo]                   подключить компонент: спросит store и компонент
+  sdd setup [repo...]                         настроить клон: store, sdd.home, doctor; подскажет про хук
+  sdd check [--pre-push]                      validate --strict и правила SDD (CI и pre-push хук)
+
+Окружение: SDD_TOOL (gigacode по умолчанию; claude, qwen ...), OPENSPEC (путь к openspec),
+SDD_CHANGE_ID_RE, SDD_SKIP=1 (пропустить pre-push проверку).
+"""
+import argparse
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+# Stores в OpenSpec - beta: форматы и флаги могут меняться. Версию фиксируем.
+OPENSPEC_PINNED = "1.14.1"
+OPENSPEC = os.environ.get("OPENSPEC", "openspec")
+TOOL = os.environ.get("SDD_TOOL", "gigacode")
+# id change: <ключ Jira в нижнем регистре>-<slug>, например shop-142-add-promo-codes.
+# У impl-change к нему добавляется -<component>.
+CHANGE_ID_RE = os.environ.get("SDD_CHANGE_ID_RE", r"^[a-z][a-z0-9]*-[0-9]+(-[a-z0-9]+)+$")
+CONTEXT_FILES = {"gigacode": "GIGACODE.md", "claude": "CLAUDE.md", "qwen": "QWEN.md", "gemini": "GEMINI.md"}
+
+
+class Fail(Exception):
+    """Ошибка для пользователя: печатается без трейсбека."""
+
+
+def say(*a):
+    print(*a, file=sys.stderr)
+
+
+def run(*cmd, cwd=None, check=True, quiet=False):
+    """Команда с выводом в stdout. quiet - вывод показывается только при ошибке."""
+    r = subprocess.run(cmd, cwd=cwd, text=True, stdin=subprocess.DEVNULL,
+                       capture_output=True)
+    if r.returncode and check:
+        raise Fail(f"{' '.join(map(str, cmd))}: код {r.returncode}\n{r.stdout}{r.stderr}".rstrip())
+    if not quiet and r.returncode == 0:
+        sys.stdout.write(r.stdout)
+    return r
+
+
+def out(*cmd, cwd=None):
+    return run(*cmd, cwd=cwd, quiet=True).stdout.strip()
+
+
+def git(repo, *args, check=True):
+    return run("git", "-C", str(repo), *args, check=check, quiet=True)
+
+
+def load_yaml(path):
+    try:
+        import yaml
+    except ImportError:
+        raise Fail("нужен PyYAML: pip install --user pyyaml (или apt install python3-yaml)")
+    return yaml.safe_load(Path(path).read_text(encoding="utf-8")) or {}
+
+
+def check_openspec():
+    if not shutil.which(OPENSPEC):
+        raise Fail(f"openspec не найден: npm i -g @fission-ai/openspec@{OPENSPEC_PINNED}")
+    v = out(OPENSPEC, "--version")
+    if v != OPENSPEC_PINNED:
+        say(f"ВНИМАНИЕ: openspec {v}, методология проверена на {OPENSPEC_PINNED}")
+
+
+def context_file():
+    """Контекстный файл агента в корне репо: его агент читает сам при любой задаче."""
+    return CONTEXT_FILES.get(TOOL, "AGENTS.md")
+
+
+def toplevel(path):
+    r = git(path, "rev-parse", "--show-toplevel", check=False)
+    if r.returncode:
+        raise Fail(f"{path}: не git-репозиторий")
+    return Path(r.stdout.strip())
+
+
+def stores():
+    """Зарегистрированные на этой машине store: {id: путь}."""
+    data = json.loads(out(OPENSPEC, "store", "list", "--json"))
+    return {s["id"]: Path(s["root"]) for s in data.get("stores", [])}
+
+
+def store_meta(store_dir):
+    meta = load_yaml(store_dir / ".openspec-store" / "store.yaml")
+    remote = meta.get("remote") or git(store_dir, "remote", "get-url", "origin", check=False).stdout.strip()
+    return meta["id"], remote
+
+
+def openspec_init(repo):
+    # stdin и вывод не терминал: спиннер openspec init в терминале может зависнуть
+    run(OPENSPEC, "init", "--tools", TOOL, "--no-animation", ".", cwd=repo, quiet=True)
+
+
+def copy_schema(name, repo):
+    dst = repo / "openspec" / "schemas" / name
+    shutil.rmtree(dst, ignore_errors=True)
+    shutil.copytree(ROOT / "schemas" / name, dst)
+
+
+def copy_skills(kind, repo):
+    # Формат SKILL.md (name + description) одинаков у GigaCode, Qwen Code и Claude Code.
+    shutil.copytree(ROOT / "templates" / kind / ".gigacode" / "skills", repo / f".{TOOL}" / "skills",
+                    dirs_exist_ok=True)
+
+
+# ---------------------------------------------------------------- интерактив
+
+def ask(question, default=""):
+    a = input(f"{question}{f' [{default}]' if default else ''}: ").strip()
+    return a or default
+
+
+def choose(question, options, default=1):
+    """Номер выбранного варианта, с 0."""
+    for i, o in enumerate(options, 1):
+        print(f"  {i}) {o}")
+    while True:
+        a = ask(question, str(default))
+        if a.isdigit() and 1 <= int(a) <= len(options):
+            return int(a) - 1
+        print(f"  введите номер от 1 до {len(options)}")
+
+
+def clone_store(url, near):
+    """Клон store рядом с репо `near`; если папка уже есть - проверяем, что это тот же репо."""
+    path = near.parent / re.sub(r"\.git$", "", Path(url.rstrip("/")).name)
+    if (path / ".git").exists():
+        origin = git(path, "remote", "get-url", "origin", check=False).stdout.strip()
+        if origin and origin != url:
+            raise Fail(f"{path} уже есть, но это клон {origin}, а не {url}")
+    else:
+        run("git", "clone", "-q", url, str(path), quiet=True)
+    return path
+
+
+# ---------------------------------------------------------------- pre-push хук
+
+def hook_hint(repo):
+    """Хук не ставим сами: у команд свои менеджеры хуков. Подсказываем, как подключить hooks/pre-push."""
+    hook = Path(out("git", "-C", str(repo), "rev-parse", "--path-format=absolute", "--git-path", "hooks")) / "pre-push"
+    text = hook.read_text(errors="replace") if hook.is_file() else ""
+    if "check --pre-push" in text or "hooks/pre-push" in text:
+        print(f"pre-push хук: подключён ({hook})")
+        return
+    src = ROOT / "hooks" / "pre-push"
+    if hook.exists():
+        say(f"Подключите pre-push хук: в начало {hook} (или его исходника в репозитории) добавьте строку\n"
+            f'  "{src}" "$@" || exit 1')
+    else:
+        say(f"Подключите pre-push хук:\n  cp {src} {hook}")
+
+
+# ---------------------------------------------------------------- команды
+
+def setup(repo):
+    """Настройка клона store или компонента. Повторный запуск безопасен."""
+    repo = toplevel(repo)
+    print(f"== {repo}")
+    ok = True
+    if (repo / ".openspec-store").is_dir():
+        run(OPENSPEC, "store", "register", "--yes", ".", cwd=repo, quiet=True)
+        print(f"store зарегистрирован: {store_meta(repo)[0]}")
+    elif (repo / "openspec" / "config.yaml").is_file():
+        known = stores()
+        for ref in load_yaml(repo / "openspec" / "config.yaml").get("references") or []:
+            sid, remote = (ref, None) if isinstance(ref, str) else (ref.get("id"), ref.get("remote"))
+            if sid in known:
+                print(f"store {sid}: зарегистрирован - {known[sid]}")
+                continue
+            if not remote:
+                say(f"store {sid}: remote не указан - склонируйте и выполните openspec store register <path>")
+                ok = False
+                continue
+            path = clone_store(remote, repo)
+            run(OPENSPEC, "store", "register", "--yes", str(path), quiet=True)
+            print(f"store {sid}: склонирован и зарегистрирован - {path}")
+    else:
+        raise Fail(f"{repo}: не SDD-репозиторий (нет openspec/config.yaml или .openspec-store/)")
+    git(repo, "config", "sdd.home", str(ROOT))   # путь к фреймворку для hooks/pre-push
+    if (repo / "openspec" / "config.yaml").is_file() and not (repo / ".openspec-store").is_dir():
+        if run(OPENSPEC, "doctor", cwd=repo, check=False, quiet=True).returncode:
+            say(f"openspec doctor: есть проблемы, запустите его в {repo}")
+            ok = False
+        else:
+            print("openspec doctor: ok")
+    hook_hint(repo)
+    return ok
+
+
+def cmd_setup(a):
+    check_openspec()
+    ok = True
+    for r in a.repos or ["."]:
+        try:
+            ok = setup(Path(r)) and ok
+        except Fail as e:
+            say(e)
+            ok = False
+    return 0 if ok else 1
+
+
+def cmd_store_init(a):
+    check_openspec()
+    repo = Path(a.path).expanduser().resolve()
+    run(OPENSPEC, "store", "setup", a.store_id, "--path", str(repo), *(["--remote", a.remote] if a.remote else []))
+    openspec_init(repo)
+    copy_schema("business", repo)
+    tpl = ROOT / "templates" / "store"
+    shutil.copy(tpl / "openspec" / "config.yaml", repo / "openspec" / "config.yaml")
+    shutil.copy(tpl / "components.yaml", repo / "components.yaml")
+    copy_skills("store", repo)
+    if not (repo / "openspec" / "specs" / "business_spec.md").exists():
+        shutil.copy(tpl / "openspec" / "specs" / "business_spec.md", repo / "openspec" / "specs" / "business_spec.md")
+    for keep in ("openspec/specs/.gitkeep", "openspec/changes/archive/.gitkeep"):
+        (repo / keep).touch()
+    git(repo, "add", "-A")
+    git(repo, "commit", "-qm", "chore: SDD store bootstrap", check=False)
+    setup(repo)
+    print(f"Store '{a.store_id}' готов: {repo}. Заполните components.yaml и запушьте.")
+    return 0
+
+
+def pick_store(repo):
+    """Интерактивно: зарегистрированный store или клон по URL. -> путь к клону."""
+    known = stores()
+    if known:
+        options = [f"{sid}  ({path})" for sid, path in known.items()] + ["другой - указать URL репозитория store"]
+        print("Store бизнес-спек:")
+        i = choose("Store", options)
+        if i < len(known):
+            return list(known.values())[i]
+    else:
+        print("На этой машине store ещё не зарегистрирован - склонирую его рядом с компонентом.")
+    path = clone_store(ask("URL store (Bitbucket/GitLab)"), repo)
+    sid, _ = store_meta(path)
+    if sid in known and known[sid] != path:
+        raise Fail(f"store {sid} уже зарегистрирован: {known[sid]}. Выберите его из списка.")
+    run(OPENSPEC, "store", "register", "--yes", str(path), quiet=True)
+    return path
+
+
+def cmd_component_init(a):
+    check_openspec()
+    interactive = not a.component
+    if interactive and not sys.stdin.isatty():
+        raise Fail("без терминала укажите --component и --store (см. sdd component-init -h)")
+    repo = toplevel(Path(ask("Репозиторий компонента", str(toplevel(Path(a.repo)))) if interactive else a.repo))
+
+    if interactive:
+        store_dir = pick_store(repo)
+    else:
+        known = stores()
+        store_dir = known.get(a.store)
+        if not store_dir and not (a.kind and a.remote is not None):
+            raise Fail(f"store {a.store} не зарегистрирован: укажите --kind и --remote или сначала sdd setup")
+    if store_dir:
+        if git(store_dir, "pull", "-q", "--ff-only", check=False).returncode:
+            say(f"Не удалось обновить store, беру как есть: {store_dir}")
+        store, remote = store_meta(store_dir)
+        components = load_yaml(store_dir / "components.yaml").get("components") or []
+    else:
+        store, remote, components = a.store, None, []
+    remote = a.remote if a.remote is not None else remote
+
+    if interactive:
+        if not components:
+            raise Fail(f"В {store_dir}/components.yaml нет компонентов: сначала добавьте компонент туда (MR в store).")
+        name = repo.name
+        default = next((i for i, c in enumerate(components, 1) if name in (c.get("id"), c.get("dir"))), 1)
+        print(f"Компонент из components.yaml store '{store}':")
+        c = components[choose("Компонент", [f"{c['id']}  ({c.get('schema')}) - {c.get('description', '')[:70]}"
+                                            for c in components], default)]
+        comp, kind = c["id"], re.sub(r"^impl-", "", c.get("schema", ""))
+        print(f"\nРепозиторий: {repo}\nКомпонент:   {comp} ({kind})\nStore:       {store} {remote or '(без remote)'}")
+        if not ask("Подключить? (y/n)", "y").lower().startswith(("y", "д")):
+            return 1
+    else:
+        comp = a.component
+        c = next((c for c in components if c.get("id") == comp), None)
+        if components and not c:
+            raise Fail(f"компонента {comp} нет в components.yaml store {store}: сначала добавьте его туда (MR в store)")
+        kind = a.kind or re.sub(r"^impl-", "", (c or {}).get("schema", ""))
+
+    if kind not in ("backend", "frontend"):
+        raise Fail(f"тип компонента: backend|frontend, а не '{kind}'")
+    schema = f"impl-{kind}"
+    openspec_init(repo)
+    copy_schema(schema, repo)
+    cfg = (ROOT / "templates" / "component" / "openspec" / "config.yaml").read_text()
+    for k, v in {"__SCHEMA__": schema, "__STORE_ID__": store, "__COMPONENT__": comp,
+                 "__STORE_REMOTE__": remote or "", "__CONTEXT_FILE__": context_file()}.items():
+        cfg = cfg.replace(k, v)
+    if not remote:
+        cfg = cfg.replace(f'- {{ id: {store}, remote: "" }}', f"- {store}")
+    (repo / "openspec" / "config.yaml").write_text(cfg)
+    copy_skills("component", repo)
+    try:
+        setup(repo)
+    except Fail as e:
+        say(e)
+    if not (repo / context_file()).exists():
+        say(f"Нет {context_file()}: заведите его - правила проектирования сервиса для агента "
+            "(см. docs/02-process.md, «Контекст для агента»).")
+    print(f"Компонент '{comp}' подключён к store '{store}'. Закоммитьте openspec/ и .{TOOL}/.")
+    return 0
+
+
+def changed_in_push():
+    """pre-push: менялся ли openspec/ в отправляемых ветках - во всех их коммитах относительно
+    main, а не только в новых. Поэтому ошибку, которая уже на сервере в этой ветке, хук ловит
+    на каждом следующем push. Остальные push не замедляет."""
+    for line in sys.stdin:
+        parts = line.split()
+        if len(parts) != 4:
+            continue
+        _, lsha, _, rsha = parts
+        if set(lsha) == {"0"}:
+            continue   # удаление ветки
+        # база - точка ответвления от main; для push в сам main это origin/main, то есть
+        # проверяются неотправленные коммиты. origin/HEAD нет у репо из init + remote add.
+        base = ""
+        for ref in ("origin/HEAD", "origin/main"):
+            r = subprocess.run(["git", "merge-base", lsha, ref], capture_output=True, text=True)
+            if r.returncode == 0:
+                base = r.stdout.strip()
+                break
+        base = base or rsha   # main не найден - от сервера
+        if set(base) == {"0"}:
+            return True
+        # 1 - есть изменения, 128 - нет коммита локально: в обоих случаях проверяем
+        if subprocess.run(["git", "diff", "--quiet", base, lsha, "--", "openspec/"],
+                          capture_output=True).returncode:
+            return True
+    return False
+
+
+def check():
+    """validate --all --strict и правила SDD. Запуск из корня репозитория.
+    В CI store должен быть склонирован и зарегистрирован, если на него есть references."""
+    ok = subprocess.run([OPENSPEC, "validate", "--all", "--strict"]).returncode == 0
+    changes = Path("openspec/changes")
+    for d in sorted(p for p in changes.glob("*/") if p.name != "archive"):
+        if not re.match(CHANGE_ID_RE, d.name):
+            print(f"ERROR: change '{d.name}': имя должно быть <jira-key>-<slug>, например shop-142-add-promo-codes")
+            ok = False
+        meta = d / ".openspec.yaml"
+        # Каждый implementation-change в компоненте обязан ссылаться на upstream.
+        if meta.is_file():
+            text = meta.read_text()
+            if re.search(r"^schema: impl-", text, re.M) and not re.search(r"^initiative:", text, re.M):
+                print(f"ERROR: {meta}: impl-change без initiative (ссылки на store)")
+                ok = False
+        # Блокирующие открытые вопросы не валят проверку (ветку spec/ можно обсуждать), но видны
+        # в PR: с ними system-design, impl-plan и archive останавливаются.
+        for name in ("proposal.md", "system.md"):
+            f = d / name
+            if not f.is_file():
+                continue
+            section = False
+            for line in f.read_text().splitlines():
+                if line.startswith("## "):
+                    section = line.startswith("## Открытые вопросы")
+                elif section and "[блокирующий]" in line:
+                    print(f"WARNING: {f}: {line}")
+    return ok
+
+
+def cmd_check(a):
+    if a.pre_push:
+        if os.environ.get("SDD_SKIP"):
+            say("sdd pre-push: SDD_SKIP задан, проверка пропущена")
+            return 0
+        if not changed_in_push():
+            return 0
+        if not shutil.which(OPENSPEC):
+            say("sdd pre-push: openspec не установлен, проверка пропущена")
+            return 0
+        say("sdd pre-push: есть изменения в openspec/, запускаю sdd check")
+        if check():
+            return 0
+        say("sdd pre-push: проверка не прошла. Исправьте и отправьте снова.")
+        return 1
+    check_openspec()
+    return 0 if check() else 1
+
+
+def main():
+    sys.stdout.reconfigure(line_buffering=True)   # порядок строк stdout/stderr в хуке и CI
+    p = argparse.ArgumentParser(prog="sdd", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    sub = p.add_subparsers(dest="cmd", required=True)
+
+    s = sub.add_parser("store-init", help="создать store бизнес-спек")
+    s.add_argument("store_id")
+    s.add_argument("path")
+    s.add_argument("remote", nargs="?", help="URL репозитория store (Bitbucket/GitLab)")
+    s.set_defaults(fn=cmd_store_init)
+
+    s = sub.add_parser("component-init", help="подключить репозиторий компонента к store",
+                       description="Без --component спрашивает store и компонент (список - из components.yaml store).")
+    s.add_argument("repo", nargs="?", default=".")
+    s.add_argument("--component", help="id из components.yaml store")
+    s.add_argument("--store", help="id store")
+    s.add_argument("--kind", choices=["backend", "frontend"], help="по умолчанию - из components.yaml")
+    s.add_argument("--remote", help="URL store; по умолчанию - из .openspec-store/store.yaml")
+    s.set_defaults(fn=cmd_component_init)
+
+    s = sub.add_parser("setup", help="настроить клон: store, sdd.home, pre-push хук, doctor")
+    s.add_argument("repos", nargs="*")
+    s.set_defaults(fn=cmd_setup)
+
+    s = sub.add_parser("check", help="validate --strict и правила SDD")
+    s.add_argument("--pre-push", action="store_true", help="режим git pre-push хука: refs из stdin")
+    s.add_argument("hook_args", nargs="*", help=argparse.SUPPRESS)
+    s.set_defaults(fn=cmd_check)
+
+    a = p.parse_args()
+    if a.cmd == "component-init" and a.component and not a.store:
+        p.error("--component требует --store")
+    try:
+        return a.fn(a)
+    except Fail as e:
+        say(e)
+        return 1
+    except (KeyboardInterrupt, EOFError):
+        say("\nпрервано")
+        return 130
+
+
+if __name__ == "__main__":
+    sys.exit(main())

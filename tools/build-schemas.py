@@ -6,7 +6,7 @@
 После обновления OpenSpec достаточно перезапустить скрипт.
 
 Использование:
-    scripts/build-schemas.py [--openspec-dir DIR] [--out DIR]
+    tools/build-schemas.py [--openspec-dir DIR] [--out DIR]
 """
 import argparse
 import pathlib
@@ -86,7 +86,7 @@ def build(base_dir: pathlib.Path, overlay_dir: pathlib.Path, out_dir: pathlib.Pa
         (tpl_out / tpl).parent.mkdir(parents=True, exist_ok=True)
         shutil.copy(src, tpl_out / tpl)
     with open(out_dir / "schema.yaml", "w") as f:
-        f.write(f"# СГЕНЕРИРОВАНО scripts/build-schemas.py из spec-driven + schemas-src/{overlay['name']}. Не править руками.\n")
+        f.write(f"# СГЕНЕРИРОВАНО tools/build-schemas.py из spec-driven + schemas-src/{overlay['name']}. Не править руками.\n")
         yaml.dump(schema, f, allow_unicode=True, sort_keys=False, width=1000)
 
 
