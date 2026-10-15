@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """SDD: подключение store и компонентов к OpenSpec, настройка клона, проверки.
 
+  sdd init [workspace] [-y]                   всё сразу: store и все репозитории папки продукта как компоненты
   sdd store-init <store-id> <path> [remote]   создать store бизнес-спек (один раз на продукт)
   sdd component-init [repo]                   подключить компонент: спросит store и компонент
   sdd setup [repo...]                         настроить клон: store, sdd.home, doctor; подскажет про хук
@@ -10,6 +11,7 @@
 SDD_CHANGE_ID_RE, SDD_SKIP=1 (пропустить pre-push проверку).
 """
 import argparse
+import itertools
 import json
 import os
 import re
@@ -115,7 +117,12 @@ def copy_skills(kind, repo):
 
 # ---------------------------------------------------------------- интерактив
 
+YES = False   # sdd init -y: брать ответы по умолчанию без вопросов
+
+
 def ask(question, default=""):
+    if YES:
+        return default
     a = input(f"{question}{f' [{default}]' if default else ''}: ").strip()
     return a or default
 
@@ -131,9 +138,18 @@ def choose(question, options, default=1):
         print(f"  введите номер от 1 до {len(options)}")
 
 
+def is_url(s):
+    return bool(re.match(r"^(\w+://|[\w.-]+@[\w.-]+:)", s))
+
+
 def clone_store(url, near):
-    """Клон store рядом с репо `near`; если папка уже есть - проверяем, что это тот же репо."""
-    path = near.parent / re.sub(r"\.git$", "", Path(url.rstrip("/")).name)
+    """Клон store рядом с репо `near`."""
+    return clone_repo(url, near.parent)
+
+
+def clone_repo(url, parent):
+    """Клон в `parent`/<имя репо>; если папка уже есть - проверяем, что это тот же репо."""
+    path = parent / re.sub(r"\.git$", "", Path(url.rstrip("/")).name)
     if (path / ".git").exists():
         origin = git(path, "remote", "get-url", "origin", check=False).stdout.strip()
         if origin and origin != url:
@@ -158,6 +174,14 @@ def hook_hint(repo):
             f'  "{src}" "$@" || exit 1')
     else:
         say(f"Подключите pre-push хук:\n  cp {src} {hook}")
+
+
+def install_hook(repo):
+    """sdd init: своего pre-push хука нет - ставим SDD-хук; есть - только подсказка."""
+    hook = Path(out("git", "-C", str(repo), "rev-parse", "--path-format=absolute", "--git-path", "hooks")) / "pre-push"
+    if not hook.exists():
+        hook.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy(ROOT / "hooks" / "pre-push", hook)
 
 
 # ---------------------------------------------------------------- команды
@@ -254,7 +278,12 @@ def cmd_component_init(a):
     interactive = not a.component
     if interactive and not sys.stdin.isatty():
         raise Fail("без терминала укажите --component и --store (см. sdd component-init -h)")
-    repo = toplevel(Path(ask("Репозиторий компонента", str(toplevel(Path(a.repo)))) if interactive else a.repo))
+    if interactive:
+        here = git(Path(a.repo), "rev-parse", "--show-toplevel", check=False)
+        answer = ask("Репозиторий компонента (путь к клону или URL)", here.stdout.strip() if not here.returncode else "")
+        repo = toplevel(clone_repo(answer, Path.cwd()) if is_url(answer) else Path(answer).expanduser())
+    else:
+        repo = toplevel(Path(a.repo))
 
     if interactive:
         store_dir = pick_store(repo)
@@ -291,6 +320,12 @@ def cmd_component_init(a):
             raise Fail(f"компонента {comp} нет в components.yaml store {store}: сначала добавьте его туда (MR в store)")
         kind = a.kind or re.sub(r"^impl-", "", (c or {}).get("schema", ""))
 
+    connect_component(repo, store, remote, comp, kind)
+    return 0
+
+
+def connect_component(repo, store, remote, comp, kind):
+    """Схема, config.yaml с references на store, скилы, setup. Повторный запуск безопасен."""
     if kind not in ("backend", "frontend"):
         raise Fail(f"тип компонента: backend|frontend, а не '{kind}'")
     schema = f"impl-{kind}"
@@ -312,7 +347,126 @@ def cmd_component_init(a):
         say(f"Нет {context_file()}: заведите его - правила проектирования сервиса для агента "
             "(см. docs/02-process.md, «Контекст для агента»).")
     print(f"Компонент '{comp}' подключён к store '{store}'. Закоммитьте openspec/ и .{TOOL}/.")
-    return 0
+
+
+# ---------------------------------------------------------------- sdd init: вся папка продукта
+
+BACKEND_MARKERS = ("pom.xml", "build.gradle", "build.gradle.kts", "go.mod", "pyproject.toml",
+                   "requirements.txt", "setup.py", "Cargo.toml", "composer.json", "Gemfile")
+FRONTEND_DEPS = ("react", "vue", "@angular/core", "svelte", "next", "nuxt")
+
+
+def guess_kind(repo):
+    """backend|frontend по файлам сборки; None - не понять."""
+    if any((repo / m).exists() for m in BACKEND_MARKERS) or any(repo.glob("*.csproj")):
+        return "backend"
+    pkg = repo / "package.json"
+    if pkg.is_file():
+        try:
+            data = json.loads(pkg.read_text(encoding="utf-8"))
+        except ValueError:
+            return None
+        deps = {**data.get("dependencies", {}), **data.get("devDependencies", {})}
+        return "frontend" if any(d in deps for d in FRONTEND_DEPS) else "backend"
+    return None
+
+
+def save_components(store_dir, components):
+    """components.yaml с сохранением комментария-шапки."""
+    import yaml
+    path = store_dir / "components.yaml"
+    old = path.read_text(encoding="utf-8") if path.exists() else ""
+    head = "".join(itertools.takewhile(lambda l: l.startswith("#"), old.splitlines(keepends=True)))
+    path.write_text(head + yaml.safe_dump({"components": components}, allow_unicode=True, sort_keys=False,
+                                          width=120), encoding="utf-8")
+
+
+def cmd_init(a):
+    global YES
+    YES = a.yes
+    check_openspec()
+    try:  # PyYAML нужен дальше: проверяем сразу, а не на середине
+        import yaml  # noqa: F401
+    except ImportError:
+        raise Fail("нужен PyYAML: pip install --user pyyaml (или apt install python3-yaml)")
+    ws = Path(a.workspace).expanduser().resolve()
+    repos = sorted(d for d in ws.iterdir() if d.is_dir() and (d / ".git").exists())
+    store_dirs = [d for d in repos if (d / ".openspec-store").is_dir()]
+
+    # 1. store
+    if len(store_dirs) > 1:
+        print("В папке несколько store:")
+        store_dir = store_dirs[choose("Store продукта", [d.name for d in store_dirs])]
+    elif store_dirs:
+        store_dir = store_dirs[0]
+    else:
+        print(f"В {ws} нет store - создам.")
+        name = ask("Каталог store", "product-specs")
+        sid = ask("id store (латиница, коротко - имя продукта)", ws.name.lower())
+        remote = ask("URL репозитория store (Bitbucket/GitLab), можно пусто", "")
+        store_dir = ws / name
+        if store_dir.is_dir() and (store_dir / ".git").exists() and not remote:
+            remote = git(store_dir, "remote", "get-url", "origin", check=False).stdout.strip()
+        cmd_store_init(argparse.Namespace(store_id=sid, path=str(store_dir), remote=remote or None))
+        repos = [d for d in repos if d != store_dir]
+    store, store_remote = store_meta(store_dir)
+    print(f"\nStore: {store} ({store_dir.name})")
+
+    # 2. реестр компонентов: шаблонные записи (example.com) выкидываем
+    components = [c for c in load_yaml(store_dir / "components.yaml").get("components") or []
+                  if "example.com" not in str(c.get("repo", ""))]
+    by_dir = {c.get("dir", c.get("id")): c for c in components}
+    added = []
+    for repo in (d for d in repos if d not in store_dirs):
+        c = by_dir.get(repo.name)
+        if c:
+            print(f"  {repo.name}: уже в components.yaml ({c['id']}, {c.get('schema')})")
+            continue
+        guess = guess_kind(repo)
+        print(f"\n  {repo.name}: новый репозиторий" + (f", похоже на {guess}" if guess else ""))
+        opts = ["backend", "frontend", "пропустить - не компонент продукта"]
+        i = choose("Тип", opts, opts.index(guess) + 1 if guess else 3)
+        if i == 2:
+            continue
+        c = {"id": ask("id компонента", repo.name),
+             "description": ask("За что отвечает (по этому СА решает, кого затрагивает фича)", ""),
+             "schema": f"impl-{opts[i]}",
+             "repo": git(repo, "remote", "get-url", "origin", check=False).stdout.strip() or str(repo),
+             "dir": repo.name}
+        components.append(c)
+        by_dir[repo.name] = c
+        added.append(c["id"])
+    if added:
+        save_components(store_dir, components)
+        git(store_dir, "add", "components.yaml")
+        git(store_dir, "commit", "-qm", f"chore: компоненты {', '.join(added)}", check=False)
+        print(f"\ncomponents.yaml: добавлены {', '.join(added)} (коммит в store, запушьте его)")
+
+    # 3. подключение компонентов
+    failed = []
+    for c in components:
+        repo = ws / c.get("dir", c["id"])
+        if not (repo / ".git").exists():
+            say(f"\n{c['id']}: нет клона {repo} - git clone {c.get('repo')} {repo} и снова sdd init")
+            failed.append(c["id"])
+            continue
+        print()
+        try:
+            install_hook(repo)
+            connect_component(repo, store, store_remote, c["id"], re.sub(r"^impl-", "", c.get("schema", "")))
+        except Fail as e:
+            say(e)
+            failed.append(c["id"])
+    print()
+    install_hook(store_dir)
+    setup(store_dir)
+
+    print(f"\nГотово: store {store}, компоненты: {', '.join(c['id'] for c in components if c['id'] not in failed) or '-'}")
+    if failed:
+        say(f"Не подключены: {', '.join(failed)}")
+    print("Дальше: запушьте store; в каждом компоненте закоммитьте openspec/ и "
+          f".{TOOL}/ (MR); наполнить store по коду - /sdd-store-bootstrap в store.")
+    return 1 if failed else 0
 
 
 def changed_in_push():
@@ -398,6 +552,14 @@ def main():
     sys.stdout.reconfigure(line_buffering=True)   # порядок строк stdout/stderr в хуке и CI
     p = argparse.ArgumentParser(prog="sdd", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(dest="cmd", required=True)
+
+    s = sub.add_parser("init", help="store и все репозитории папки продукта как компоненты",
+                       description="Запуск из папки, где лежат store и репозитории компонентов. Нет store - создаст. "
+                                   "Новые репозитории добавит в components.yaml (тип угадывает по файлам сборки), "
+                                   "все компоненты подключит. Повторный запуск безопасен.")
+    s.add_argument("workspace", nargs="?", default=".")
+    s.add_argument("-y", "--yes", action="store_true", help="без вопросов: ответы по умолчанию")
+    s.set_defaults(fn=cmd_init)
 
     s = sub.add_parser("store-init", help="создать store бизнес-спек")
     s.add_argument("store_id")

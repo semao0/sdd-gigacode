@@ -27,6 +27,7 @@ templates/store/      config.yaml, components.yaml, скилы store (.gigacode/
 templates/component/  config.yaml (references на store), скилы компонента (.gigacode/skills)
 examples/shop/        пример трёх репозиториев с заполненными спеками
 scripts/sdd           единый CLI (Python 3.8+):
+                        init            вся папка продукта: store + все компоненты
                         store-init      создание store
                         component-init  подключение репозитория компонента (интерактивно)
                         setup           настройка клона: store, sdd.home, doctor
@@ -56,34 +57,43 @@ tools/
 
 ## Быстрый старт
 
+Договорённость: store и все репозитории продукта лежат в одной папке (`~/work/<product>/`).
+
 ```bash
 npm i -g @fission-ai/openspec@1.14.1
-pip install --user pyyaml          # нужен store-init/component-init/setup; check обходится без него
+pip install --user pyyaml          # нужен init/store-init/component-init/setup; check обходится без него
 git clone <sdd> ~/tools/sdd
 
-# 1. store (один раз на продукт)
-~/tools/sdd/scripts/sdd store-init product ~/work/shop/product-specs git@gitlab.example.com:shop/product-specs.git
-#    → заполнить components.yaml и openspec/specs/business_spec.md (глоссарий, роли, домены), git push
-#    существующий продукт: клоны компонентов рядом со store, затем /sdd-store-bootstrap в store -
-#    агент восстановит спеки по коду, по MR на каркас и на каждый домен
+# склонировать в ~/work/shop репозитории компонентов (и store, если он уже есть), затем:
+cd ~/work/shop && ~/tools/sdd/scripts/sdd init
+```
 
-# 2. каждый репозиторий компонента (один раз); правила сервиса для агента - GIGACODE.md в корне
-cd ~/work/shop/backend && ~/tools/sdd/scripts/sdd component-init
-#    спросит store (зарегистрированный или URL - склонирует рядом) и компонент из его
-#    components.yaml; тип и remote берёт оттуда же. Без вопросов (CI, скрипты):
-#    sdd component-init <repo> --component <id> --store <store-id> [--kind backend|frontend] [--remote URL]
+`sdd init` делает всё сразу и безопасен при повторном запуске:
+- находит store в папке, нет - создаёт (спросит каталог, id и URL репозитория);
+- каждый новый репозиторий предлагает добавить в `components.yaml`: тип backend/frontend угадывает
+  по файлам сборки, спрашивает id и описание; лишнее (docs, infra) - «пропустить»;
+- подключает все компоненты: схема, `openspec/config.yaml` со ссылкой на store, скилы;
+- регистрирует store, пишет `git config sdd.home`, ставит pre-push хук, где своего хука нет.
 
-# 3. каждый разработчик (один раз на клон): клонирует и регистрирует store
-~/tools/sdd/scripts/sdd setup ~/work/shop/backend ~/work/shop/frontend
-#    и подключает pre-push хук - setup в конце напишет команду:
-cp ~/tools/sdd/hooks/pre-push .git/hooks/pre-push
+Дальше: запушить store, в компонентах закоммитить `openspec/` и `.gigacode/` (MR), в каждом
+компоненте завести `GIGACODE.md` (правила сервиса для агента), наполнить store по коду -
+`/sdd-store-bootstrap` в store. `sdd init -y` - без вопросов, ответы по умолчанию.
+
+Новый разработчик клонирует репозитории в такую же папку и запускает там `sdd init -y`.
+Новый компонент - клон в папку и снова `sdd init`.
+
+Отдельные команды (CI, нестандартная раскладка):
+
+```bash
+sdd store-init <store-id> <path> [remote]          # только store
+sdd component-init <repo> --component <id> --store <store-id> [--kind backend|frontend] [--remote URL]
+sdd setup <repo>...                                # настройка клона: store, sdd.home, doctor
 ```
 
 Если в репозитории уже есть свой pre-push хук (husky, Gradle, lefthook), вызовите SDD-хук
 первой строкой из него: `"$SDD_HOME/hooks/pre-push" "$@" || exit 1`.
 
-Рекомендуемая раскладка: store и компоненты лежат рядом в одной папке
-(`~/work/<product>/`), там их ищет `sdd-initiative-status` (иначе нужен `SDD_WORKSPACE`).
+В той же папке компоненты ищет `sdd-initiative-status` (иначе нужен `SDD_WORKSPACE`).
 
 ## Обновление OpenSpec
 
