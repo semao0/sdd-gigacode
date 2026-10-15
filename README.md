@@ -41,6 +41,7 @@ tools/
 
 | Скил | Где | Когда |
 |---|---|---|
+| `sdd-store-bootstrap` | store, БА + СА | первичное наполнение store по коду и документации существующего продукта |
 | `sdd-business-propose` | store, БА | новая фича или правка бизнес-требований |
 | `sdd-system-design` | store, СА | system.md: компоненты, матрица сценариев, контракты, данные, НФТ |
 | `sdd-initiative-status` | store | сквозной статус фичи по всем компонентам |
@@ -63,6 +64,8 @@ git clone <sdd> ~/tools/sdd
 # 1. store (один раз на продукт)
 ~/tools/sdd/scripts/sdd store-init product ~/work/shop/product-specs git@gitlab.example.com:shop/product-specs.git
 #    → заполнить components.yaml и openspec/specs/business_spec.md (глоссарий, роли, домены), git push
+#    существующий продукт: клоны компонентов рядом со store, затем /sdd-store-bootstrap в store -
+#    агент восстановит спеки по коду, по MR на каркас и на каждый домен
 
 # 2. каждый репозиторий компонента (один раз); правила сервиса для агента - GIGACODE.md в корне
 cd ~/work/shop/backend && ~/tools/sdd/scripts/sdd component-init
