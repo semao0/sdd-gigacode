@@ -1,0 +1,40 @@
+# Настройки skill sdd-f4-func-spec.
+# Новое пространство добавляется ещё одним элементом в spaces.
+# Значения с TODO уточнить в Jira перед первым боевым запуском.
+
+jira_url: https://jira.delta.sbrf.ru
+stash_url: https://stash.delta.sbrf.ru
+# Адрес для git clone/push. Точный вид — в Stash: Clone → SSH. {project} подставляется в нижнем регистре.
+# По HTTPS: "https://stash.delta.sbrf.ru/scm/{project}/{repo}.git"
+clone_url_template: "ssh://git@stash.delta.sbrf.ru:7999/{project}/{repo}.git"
+
+issue_types: [Улучшение, Improvement]
+label: автофлоу
+status: Анализ
+
+status_field: Текущий статус (краткий комментарий)
+status_field_id: customfield_TODO   # id поля в Jira, например customfield_12345
+status_field_kind: text             # text | select
+status_from: создана бизнес-спецификация
+status_to: создана функциональная спецификация
+
+branch_template: "feature/{improvement}-fr"
+# Как f2 называет ветку Story. Проверяются по порядку, затем любая ветка с ключом Story.
+story_branch_templates: ["release/{story}", "feature/{story}", "{story}"]
+
+spaces:
+  - name: Мотивация 3.0 ЕВПФ
+    jira_project: EVPF
+    stash_project: PCAP-CC360
+    repo: evpf_spec
+    spec_root: openspec
+  - name: Мотивация КБ 3.0
+    jira_project: TODO
+    stash_project: PCAP-CC360
+    repo: motiv3_spec
+    spec_root: openspec
+  - name: Автотрекинг целей B2B+
+    jira_project: TODO
+    stash_project: PCAP-CC360
+    repo: atrk_spec
+    spec_root: openspec
